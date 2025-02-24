@@ -127,28 +127,10 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
               }
             })
           }
-          checkNode(node.body)
-        }
-        break
-      }
-      case 'ArrowFunctionExpression': {
-        const func = node as any
-        if (!config.allowAnyInParameters) {
-          func.params?.forEach((param: any) => {
-            if (isAnyType(param.typeAnnotation)) {
-              pushAnyUsageError('Usage of "any" in function parameter is not allowed.', param)
-            }
-          })
-        }
-
-        if (!config.allowAnyInReturnType && isAnyType(func.returnType)) {
-          pushAnyUsageError('Usage of "any" in function return type is not allowed.', node)
-        }
-
-        // Check body (handle single-expression arrow functions or block statements)
-        if (func.body && func.body.type !== 'BlockStatement') {
-          checkNode(func.body)
-        } else {
+          // Check return type
+          if (!config.allowAnyInReturnType && isAnyType(func.returnType)) {
+            pushAnyUsageError('Usage of "any" in function return type is not allowed.', node)
+          }
           checkNode(node.body)
         }
         break
