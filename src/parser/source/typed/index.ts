@@ -134,7 +134,9 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
           if (!config.allowAnyInReturnType && isAnyType(func.returnType)) {
             pushAnyUsageError('Usage of "any" in function return type is not allowed.', node)
           }
-          checkNode(func.returnType)
+          if (func.returnType) {
+            checkNode(func.returnType)
+          }
           checkNode(node.body)
         }
         break
