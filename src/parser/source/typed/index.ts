@@ -86,7 +86,9 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
   const config = {
     allowAnyInVariables: false,
     allowAnyInParameters: false,
-    allowAnyInReturnType: false
+    allowAnyInReturnType: false,
+    allowAnyInTypeAnnotationParameters: false,
+    allowAnyInTypeAnnotationReturnType: false
   }
 
   function pushAnyUsageError(message: string, node: TypedES.Node) {
@@ -108,6 +110,7 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
             if (isAnyType(tsType)) {
               pushAnyUsageError('Usage of "any" in variable declaration is not allowed.', node)
             }
+            checkNode(tsType)
             if (decl.init) {
               // check for lambdas
               checkNode(decl.init)
@@ -131,6 +134,7 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
           if (!config.allowAnyInReturnType && isAnyType(func.returnType)) {
             pushAnyUsageError('Usage of "any" in function return type is not allowed.', node)
           }
+          checkNode(func.returnType)
           checkNode(node.body)
         }
         break
@@ -144,6 +148,30 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
       case 'BlockStatement':
         node.body.forEach(checkNode)
         break
+      case 'TSTypeAnnotation': {
+        const annotation = node as TypedES.TSTypeAnnotation
+        // If it's a function type annotation, check its params and return type
+        if (annotation.typeAnnotation?.type === 'TSFunctionType') {
+          annotation.typeAnnotation.parameters?.forEach(param => {
+            if (!config.allowAnyInTypeAnnotationParameters && isAnyType(param.typeAnnotation)) {
+              pushAnyUsageError(
+                'Usage of "any" in type annotation\'s function parameter is not allowed.',
+                param
+              )
+            }
+          })
+          if (
+            !config.allowAnyInTypeAnnotationReturnType &&
+            isAnyType((annotation.typeAnnotation as TypedES.TSFunctionType).typeAnnotation)
+          ) {
+            pushAnyUsageError(
+              'Usage of "any" in type annotation\'s function return type is not allowed.',
+              annotation
+            )
+          }
+        }
+        break
+      }
       default:
         break
     }
