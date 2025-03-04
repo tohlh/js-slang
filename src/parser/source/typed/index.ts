@@ -67,7 +67,6 @@ export class SourceTypedParser extends SourceParser {
     }
 
     const typedProgram: TypedES.Program = ast.program as TypedES.Program
-    console.log(typedProgram)
     if (context.prelude !== programStr) {
       // Check for any declaration only if the program is not the prelude
       checkForAnyDeclaration(typedProgram, context)
@@ -138,6 +137,28 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
         }
         break
       }
+      case 'ArrowFunctionExpression': {
+        if (!config.allowAnyInParameters || !config.allowAnyInReturnType) {
+          const arrow = node as any
+          // Check parameters
+          if (!config.allowAnyInParameters) {
+            arrow.params?.forEach((param: any) => {
+              if (isAnyType(param.typeAnnotation)) {
+                pushAnyUsageError(
+                  'Usage of "any" in arrow function parameter is not allowed.',
+                  param
+                )
+              }
+            })
+          }
+          // Recursively check return type if present
+          if (!config.allowAnyInReturnType && isAnyType(arrow.returnType)) {
+            pushAnyUsageError('Usage of "any" in arrow function return type is not allowed.', arrow)
+          }
+          checkNode(node.body)
+        }
+        break
+      }
       case 'ReturnStatement': {
         if (node.argument) {
           checkNode(node.argument)
@@ -174,6 +195,12 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
         if (annotation.typeAnnotation?.type === 'TSFunctionType') {
           annotation.typeAnnotation.parameters?.forEach(param => {
             // Recursively check nested TSTypeAnnotations in parameters
+            if (!config.allowAnyInTypeAnnotationParameters && isAnyType(param.typeAnnotation)) {
+              pushAnyUsageError(
+                'Usage of "any" in type annotation\'s function parameter is not allowed.',
+                param
+              )
+            }
             if (param.typeAnnotation) {
               checkTSNode(param.typeAnnotation)
             }
