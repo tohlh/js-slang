@@ -67,6 +67,7 @@ export class SourceTypedParser extends SourceParser {
     }
 
     const typedProgram: TypedES.Program = ast.program as TypedES.Program
+    console.log(typedProgram)
     if (context.prelude !== programStr) {
       // Check for any declaration only if the program is not the prelude
       checkForAnyDeclaration(typedProgram, context)
@@ -110,7 +111,6 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
             if (isAnyType(tsType)) {
               pushAnyUsageError('Usage of "any" in variable declaration is not allowed.', node)
             }
-            checkNode(tsType)
             if (decl.init) {
               // check for lambdas
               checkNode(decl.init)
@@ -134,9 +134,6 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
           if (!config.allowAnyInReturnType && isAnyType(func.returnType)) {
             pushAnyUsageError('Usage of "any" in function return type is not allowed.', node)
           }
-          if (func.returnType) {
-            checkNode(func.returnType)
-          }
           checkNode(node.body)
         }
         break
@@ -150,34 +147,80 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
       case 'BlockStatement':
         node.body.forEach(checkNode)
         break
-      case 'TSTypeAnnotation': {
-        const annotation = node as TypedES.TSTypeAnnotation
-        // If it's a function type annotation, check its params and return type
-        if (annotation.typeAnnotation?.type === 'TSFunctionType') {
-          annotation.typeAnnotation.parameters?.forEach(param => {
-            if (!config.allowAnyInTypeAnnotationParameters && isAnyType(param.typeAnnotation)) {
-              pushAnyUsageError(
-                'Usage of "any" in type annotation\'s function parameter is not allowed.',
-                param
-              )
-            }
-          })
-          if (
-            !config.allowAnyInTypeAnnotationReturnType &&
-            isAnyType((annotation.typeAnnotation as TypedES.TSFunctionType).typeAnnotation)
-          ) {
-            pushAnyUsageError(
-              'Usage of "any" in type annotation\'s function return type is not allowed.',
-              annotation
-            )
-          }
-        }
-        break
-      }
       default:
         break
     }
   }
 
-  program.body.forEach(checkNode)
+  function checkTSNode(node: TypedES.Node) {
+    if (!node) {
+      // Happens when there is no type annotation
+      // This should have been caught by checkNode function
+      return
+    }
+    switch (node.type) {
+      case 'VariableDeclaration': {
+        if (!config.allowAnyInVariables) {
+          node.declarations.forEach(decl => {
+            const tsType = (decl as any).id?.typeAnnotation
+            checkTSNode(tsType)
+          })
+        }
+        break
+      }
+      case 'TSTypeAnnotation': {
+        const annotation = node as TypedES.TSTypeAnnotation
+        // If it's a function type annotation, check params and return
+        if (annotation.typeAnnotation?.type === 'TSFunctionType') {
+          annotation.typeAnnotation.parameters?.forEach(param => {
+            // Recursively check nested TSTypeAnnotations in parameters
+            if (param.typeAnnotation) {
+              checkTSNode(param.typeAnnotation)
+            }
+          })
+          const returnAnno = (annotation.typeAnnotation as TypedES.TSFunctionType).typeAnnotation
+          if (!config.allowAnyInTypeAnnotationReturnType && isAnyType(returnAnno)) {
+            pushAnyUsageError(
+              'Usage of "any" in type annotation\'s function return type is not allowed.',
+              annotation
+            )
+          }
+          // Recursively check nested TSTypeAnnotations in return type
+          checkTSNode(returnAnno)
+        }
+        break
+      }
+      case 'FunctionDeclaration': {
+        // Here we also check param type annotations + return type via config
+        if (!config.allowAnyInParameters || !config.allowAnyInReturnType) {
+          const func = node as any
+          // Check parameters
+          if (!config.allowAnyInParameters) {
+            func.params?.forEach((param: any) => {
+              if (isAnyType(param.typeAnnotation)) {
+                pushAnyUsageError('Usage of "any" in function parameter is not allowed.', param)
+              }
+              // Recursively check the annotation
+              checkTSNode(param.typeAnnotation)
+            })
+          }
+          // Recursively check the function return type annotation
+          checkTSNode(func.returnType)
+        }
+        break
+      }
+      case 'BlockStatement':
+        node.body.forEach(checkTSNode)
+        break
+      default:
+        break
+    }
+  }
+
+  if (!config.allowAnyInVariables || !config.allowAnyInParameters || !config.allowAnyInReturnType) {
+    program.body.forEach(checkNode)
+  }
+  if (!config.allowAnyInTypeAnnotationParameters || !config.allowAnyInTypeAnnotationReturnType) {
+    program.body.forEach(checkTSNode)
+  }
 }
