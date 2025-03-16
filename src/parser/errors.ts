@@ -35,10 +35,8 @@ export class TrailingCommaError implements SourceError {
 export class FatalSyntaxError implements SourceError {
   public type = ErrorType.SYNTAX
   public severity = ErrorSeverity.ERROR
-  public constructor(
-    public location: SourceLocation,
-    public message: string
-  ) {}
+
+  public constructor(public location: SourceLocation, public message: string) {}
 
   public explain() {
     return this.message

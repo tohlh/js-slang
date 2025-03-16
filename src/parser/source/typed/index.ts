@@ -83,12 +83,20 @@ export class SourceTypedParser extends SourceParser {
 }
 
 function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
+  function parseConfigOption(option: string | undefined) {
+    return option === 'true' || option === undefined
+  }
+
   const config = {
-    allowAnyInVariables: false,
-    allowAnyInParameters: false,
-    allowAnyInReturnType: false,
-    allowAnyInTypeAnnotationParameters: false,
-    allowAnyInTypeAnnotationReturnType: false
+    allowAnyInVariables: parseConfigOption(context.languageOptions['allowAnyInVariables']),
+    allowAnyInParameters: parseConfigOption(context.languageOptions['allowAnyInParameters']),
+    allowAnyInReturnType: parseConfigOption(context.languageOptions['allowAnyInReturnType']),
+    allowAnyInTypeAnnotationParameters: parseConfigOption(
+      context.languageOptions['allowAnyInTypeAnnotationParameters']
+    ),
+    allowAnyInTypeAnnotationReturnType: parseConfigOption(
+      context.languageOptions['allowAnyInTypeAnnotationReturnType']
+    )
   }
 
   function pushAnyUsageError(message: string, node: TypedES.Node) {

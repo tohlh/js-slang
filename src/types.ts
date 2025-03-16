@@ -98,9 +98,12 @@ export enum Variant {
   EXPLICIT_CONTROL = 'explicit-control'
 }
 
+export type LanguageOptions = Map<string, string>
+
 export interface Language {
   chapter: Chapter
   variant: Variant
+  languageOptions?: LanguageOptions
 }
 
 export type ValueWrapper = LetWrapper | ConstWrapper
@@ -194,6 +197,11 @@ export interface Context<T = any> {
    * Examples: concurrent
    */
   variant: Variant
+
+  /**
+   * Describes the custom language option to be used for evaluation
+   */
+  languageOptions: LanguageOptions
 
   /**
    * Contains the evaluated code that has not yet been typechecked.
@@ -503,11 +511,10 @@ export type TypeEnvironment = {
  * By default, `Partial<Array<T>>` is equivalent to `Array<T | undefined>`. For this type, `Array<T>` will be
  * transformed to Array<Partial<T>> instead
  */
-export type RecursivePartial<T> =
-  T extends Array<any>
-    ? Array<RecursivePartial<T[number]>>
-    : T extends Record<any, any>
-      ? Partial<{
-          [K in keyof T]: RecursivePartial<T[K]>
-        }>
-      : T
+export type RecursivePartial<T> = T extends Array<any>
+  ? Array<RecursivePartial<T[number]>>
+  : T extends Record<any, any>
+  ? Partial<{
+      [K in keyof T]: RecursivePartial<T[K]>
+    }>
+  : T
