@@ -88,14 +88,14 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
   }
 
   const config = {
-    allowAnyInVariables: parseConfigOption(context.languageOptions['allowAnyInVariables']),
-    allowAnyInParameters: parseConfigOption(context.languageOptions['allowAnyInParameters']),
-    allowAnyInReturnType: parseConfigOption(context.languageOptions['allowAnyInReturnType']),
+    allowAnyInVariables: parseConfigOption(context.languageOptions['typedAllowAnyInVariables']),
+    allowAnyInParameters: parseConfigOption(context.languageOptions['typedAllowAnyInParameters']),
+    allowAnyInReturnType: parseConfigOption(context.languageOptions['typedAllowAnyInReturnType']),
     allowAnyInTypeAnnotationParameters: parseConfigOption(
-      context.languageOptions['allowAnyInTypeAnnotationParameters']
+      context.languageOptions['typedAllowAnyInTypeAnnotationParameters']
     ),
     allowAnyInTypeAnnotationReturnType: parseConfigOption(
-      context.languageOptions['allowAnyInTypeAnnotationReturnType']
+      context.languageOptions['typedAllowAnyInTypeAnnotationReturnType']
     )
   }
 
@@ -232,10 +232,6 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
           // Check parameters
           if (!config.allowAnyInParameters) {
             func.params?.forEach((param: any) => {
-              if (isAnyType(param.typeAnnotation)) {
-                pushAnyUsageError('Usage of "any" in function parameter is not allowed.', param)
-              }
-              // Recursively check the annotation
               checkTSNode(param.typeAnnotation)
             })
           }
