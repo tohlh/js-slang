@@ -112,31 +112,27 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
   function checkNode(node: TypedES.Node) {
     switch (node.type) {
       case 'VariableDeclaration': {
-        if (!config.allowAnyInVariables) {
-          node.declarations.forEach(decl => {
-            const tsType = (decl as any).id?.typeAnnotation
-            if (isAnyType(tsType)) {
-              pushAnyUsageError('Usage of "any" in variable declaration is not allowed.', node)
-            }
-            if (decl.init) {
-              // check for lambdas
-              checkNode(decl.init)
-            }
-          })
-        }
+        node.declarations.forEach(decl => {
+          const tsType = (decl as any).id?.typeAnnotation
+          if (!config.allowAnyInVariables && isAnyType(tsType)) {
+            pushAnyUsageError('Usage of "any" in variable declaration is not allowed.', node)
+          }
+          if (decl.init) {
+            // check for lambdas
+            checkNode(decl.init)
+          }
+        })
         break
       }
       case 'FunctionDeclaration': {
         if (!config.allowAnyInParameters || !config.allowAnyInReturnType) {
           const func = node as any
           // Check parameters
-          if (!config.allowAnyInParameters) {
-            func.params?.forEach((param: any) => {
-              if (isAnyType(param.typeAnnotation)) {
-                pushAnyUsageError('Usage of "any" in function parameter is not allowed.', param)
-              }
-            })
-          }
+          func.params?.forEach((param: any) => {
+            if (!config.allowAnyInParameters && isAnyType(param.typeAnnotation)) {
+              pushAnyUsageError('Usage of "any" in function parameter is not allowed.', param)
+            }
+          })
           // Check return type
           if (!config.allowAnyInReturnType && isAnyType(func.returnType)) {
             pushAnyUsageError('Usage of "any" in function return type is not allowed.', node)
@@ -149,18 +145,19 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
         if (!config.allowAnyInParameters || !config.allowAnyInReturnType) {
           const arrow = node as any
           // Check parameters
-          if (!config.allowAnyInParameters) {
-            arrow.params?.forEach((param: any) => {
-              if (isAnyType(param.typeAnnotation)) {
-                pushAnyUsageError(
-                  'Usage of "any" in arrow function parameter is not allowed.',
-                  param
-                )
-              }
-            })
-          }
+          arrow.params?.forEach((param: any) => {
+            if (!config.allowAnyInParameters && isAnyType(param.typeAnnotation)) {
+              pushAnyUsageError('Usage of "any" in arrow function parameter is not allowed.', param)
+            }
+          })
           // Recursively check return type if present
           if (!config.allowAnyInReturnType && isAnyType(arrow.returnType)) {
+            pushAnyUsageError('Usage of "any" in arrow function return type is not allowed.', arrow)
+          }
+          if (
+            !config.allowAnyInReturnType &&
+            arrow.params?.some((param: any) => isAnyType(param.typeAnnotation))
+          ) {
             pushAnyUsageError('Usage of "any" in arrow function return type is not allowed.', arrow)
           }
           checkNode(node.body)
@@ -189,12 +186,10 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
     }
     switch (node.type) {
       case 'VariableDeclaration': {
-        if (!config.allowAnyInVariables) {
-          node.declarations.forEach(decl => {
-            const tsType = (decl as any).id?.typeAnnotation
-            checkTSNode(tsType)
-          })
-        }
+        node.declarations.forEach(decl => {
+          const tsType = (decl as any).id?.typeAnnotation
+          checkTSNode(tsType)
+        })
         break
       }
       case 'TSTypeAnnotation': {
@@ -227,10 +222,13 @@ function checkForAnyDeclaration(program: TypedES.Program, context: Context) {
       }
       case 'FunctionDeclaration': {
         // Here we also check param type annotations + return type via config
-        if (!config.allowAnyInParameters || !config.allowAnyInReturnType) {
+        if (
+          !config.allowAnyInTypeAnnotationParameters ||
+          !config.allowAnyInTypeAnnotationReturnType
+        ) {
           const func = node as any
           // Check parameters
-          if (!config.allowAnyInParameters) {
+          if (!config.allowAnyInTypeAnnotationParameters) {
             func.params?.forEach((param: any) => {
               checkTSNode(param.typeAnnotation)
             })
